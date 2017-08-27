@@ -1,5 +1,6 @@
 import .components
 import .strategy
+from datetime import timedelta
 
 
 class Simulator:
