@@ -1,5 +1,4 @@
-import .components
-import .strategy
+from . import components, strategy
 from datetime import timedelta
 
 
@@ -21,22 +20,26 @@ class Simulator:
 
         """
 
-        current = start
 
-        while current < finish:
+        self.datahandler.time = start
+        time = self.datahandler.time
+        data = self.datahandler
+        strat = self.strategy
+
+        while time < finish:
             # Get the current price of the relevant events
-            datapoints = self.datahandler.get_data_points(current,
-                                                          self.strategy.lookback)
+            datapoints = data.get_data_points(strat.lookback)
 
-            current_share_price = self.datahandler.get_shareprice(current)
+            current_share_price = data.get_shareprice()
 
             # Determine if anything needs to be done
-            strategy = self.strategy.generate_strategy(datapoints, self.portfolio)
+            strategy = strat.generate_strategy(datapoints, self.portfolio)
 
             # Update the Portfolio
-            self.strategy.apply_strategy(self.portfolio)
+            strat.apply_strategy(self.portfolio)
 
             # Get the current value of the portfolio
             self.returns.append(self.portfolio.value(current_share_price))
 
-            current += timedelta(timestep)
+            # Use the datahandler to update to the next state to look at
+            data.update(timestep)

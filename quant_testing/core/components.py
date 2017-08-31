@@ -1,7 +1,7 @@
-import NamedTuple
-import logger
-import ABCMeta
+import logging
+from abc import ABCMeta, abstractmethod
 import pandas as pd
+from datetime import datetime, timedelta
 
 logger = "AlgoTrading.log"
 
@@ -37,22 +37,47 @@ class DataHandler:
         """
         raise NotImplementedError("Should implement get_shareprice()")
 
+    @abstractmethod
+    def update(self, timestep, finish_point):
+        raise NotImplementedError
 
-class CsvHandler(DataHandler):
+
+class GoogleCsvHandler(DataHandler):
 
     def __init__(self, file_path):
 
         self.data = pd.read_csv(file_path)
-        if 'timestamp' not in self.data:
-            raise ValueError("Need timestamp information to use data")
 
-    def get_data_points(self, symbol, timestamp, N=1):
+        # Convert data to a datetime format
+        self.data['timestamp'] = self.data.Date.apply(lambda x: datetime.strptime(x, '%d-%b-%y'))
+        self.data['share_price'] = self.data['Close']
+        self.data.sort_values(['timestamp'], ascending=True)
+
+        self.time = self.data['timestamp'][0]
+
+
+    def get_data_points(self, timestamp=None, N=1):
+        if not timestamp:
+            timestamp = self.time
         relevant_data = self.data[self.data['timestamp'] < timestamp]
         return relevant_data.tail(N)
 
-    def get_shareprice(self, symbol, timestamp):
+    def get_shareprice(self, timestamp=None):
+        if not timestamp:
+            timestamp = self.time
         relevant_data = self.data[self.data['timestamp'] == timestamp]
         return relevant_data['share_price']
+
+    def update(self, timestep):
+        """ Update the time value by the number of days mentioned. If that is
+        a weekend, move to the next available day
+
+        """
+
+        next_date = self.time + timedelta(timestep)
+        self.time = self.data[self.data['timestamp'] >= next_date]['timestamp'].min()
+
+
 
 # ###########################################################################
 # Portfolio classes
