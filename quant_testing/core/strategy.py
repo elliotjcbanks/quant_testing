@@ -1,12 +1,18 @@
+from events import ExecutionType
+
 class Strategy:
+    """Calculate the signal based on the data, determine whether to carry out the
+    strategy. Implement the strategy to the appropriate portfolio if neccesary.
+
+    """
 
     def generate_strategy(self):
         raise NotImplementedError
 
-    def apply_strategy(self):
+    def strategy_transaction_costs(self):
         raise NotImplementedError
 
-    def strategy_transaction_costs(self):
+    def implement_strategy(self):
         raise NotImplementedError
 
 
@@ -16,49 +22,31 @@ class BinaryStrategy(Strategy):
 
     """
 
-    def __init__(self, number_shares, flat_commision, percentage_comission):
+    def __init__(self, events, flat_commision,
+                 percentage_comission, portfolio):
 
-        self.shares_bought = False
-        self.should_buy = False
-        self.should_sell = False
-        self.strategy_number_shares = number_shares
+        self.events = events
         self.flat_cost = flat_commision
         self.percentage_comission = percentage_comission
+        self.portfolio = portfolio
 
-
-    def strategy_transaction_costs(self, share_price):
-        """Determine the transaction_costs associated with the strategy
-
-        """
-
-        floating_cost = share_price * self.percentage_comission
-        return floating_cost + self.flat_cost
-
-
-    def generate_strategy(self, data, portfolio):
-        """ Determine the strategy from the data for the portfolio
+    def generate_strategy(self, event):
+        """ Determine the strategy from the data for the portfolio. Returns
+        and instruction whether or not to buy the stared
 
         """
-        if self.should_buy or self.should_sell:
-            # Already an order in place so don't regenerate_strategy
-            return
 
-        price_data = np.asarray('share_price')
+        data = event.signal_data
+        price_data = np.asarray(data['share_price'])
         current_price = price_data[-1]
         mean_price = np.mean(price_data)
         std_price = np.std(price_data)
 
-        if self.shares_bought:
-            if current_price > mean_price - 2 * std_price:
-                self.should_sell = True
-        else:
-            if current_price < mean_price - 2 * std_price:
-                self.should_buy = True
-
-
-    def apply_strategy(self):
-        """Apply the relevant strategy
-
-        """
-
-        self.strategy_transaction_costs()
+        if current_price > mean_price - 2 * std_price:
+            self.events.put(SignalEvent(None,
+                                        event.timestamp,
+                                        ExecutionType.sell)
+        elif current_price < mean_price - 2 * std_price:
+            self.events.put(SignalEvent(None,
+                                        event.timestamp,
+                                        ExecutionType.buy)
