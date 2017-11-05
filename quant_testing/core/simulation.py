@@ -1,15 +1,19 @@
 from . import components, strategy
 from datetime import timedelta
+import Queue as queue
 
 
 class Simulator:
 
-    def __init__(self, portfolio, strategy, datahandler):
+    def __init__(self, portfolio, strategy, datahandler, execution_handler):
 
         self.portfolio = portfolio
         self.strategy = strategy
         self.datahandler = datahandler
+        self.execution_handler = execution_handler
+
         self.returns = []
+        self.events = queue.Queue()
 
 
     def run_simulation(self, start, finish, timestep):
@@ -20,26 +24,28 @@ class Simulator:
 
         """
 
+        while True:
 
-        self.datahandler.time = start
-        time = self.datahandler.time
-        data = self.datahandler
-        strat = self.strategy
+            while True:
 
-        while time < finish:
-            # Get the current price of the relevant events
-            datapoints = data.get_data_points(strat.lookback)
+                try:
+                    event = self.events.get(False)
+                except queue.Empty:
+                    break
+                else:
+                    if event is not None:
+                        if isinstance(event, MarketEvent):
+                            self.strategy.generate_strategy(event)
 
-            current_share_price = data.get_shareprice()
+                        elif isinstance(event, SignalEvent):
+                            self.portfolio.generate_order(event)
 
-            # Determine if anything needs to be done
-            strategy = strat.generate_strategy(datapoints, self.portfolio)
+                        elif isinstance(event, OrderEvent):
+                            self.execution_handler.fill_order(event)
 
-            # Update the Portfolio
-            strat.apply_strategy(self.portfolio)
+                        elif isinstance(event, FillEvent):
+                            self.portfolio.update_portfolio(event)
 
-            # Get the current value of the portfolio
-            self.returns.append(self.portfolio.value(current_share_price))
-
-            # Use the datahandler to update to the next state to look at
-            data.update(timestep)
+            update_result = self.datahandler.update_bars()
+            if update_result is False:
+                break

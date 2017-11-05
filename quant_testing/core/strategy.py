@@ -11,10 +11,7 @@ class Strategy:
 
     def strategy_transaction_costs(self):
         raise NotImplementedError
-
-    def implement_strategy(self):
-        raise NotImplementedError
-
+        
 
 class BinaryStrategy(Strategy):
     """ Using data, buy if price is more than 2 std below mean. Sell if reverts
