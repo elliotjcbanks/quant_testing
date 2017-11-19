@@ -2,7 +2,8 @@ import logging
 from abc import ABCMeta, abstractmethod
 import pandas as pd
 from datetime import datetime, timedelta
-import events
+import quant_testing.core.events
+from .events import MarketEvent
 
 logger = "AlgoTrading.log"
 
@@ -34,40 +35,40 @@ class DataHandler:
 
 class DailyCsvHandler(DataHandler):
 
-    def __init__(self, file_path, events, lookback=10, timestamp=None, max_timestamp):
+    def __init__(self, file_path, events, lookback=10, max_timestamp=None):
 
         self.read_file(file_path)
         self.events = events
         self.lookback = lookback
-        self.max_timestamp = max_timestamp
-        if timestamp is not None:
-            self.time = timestamp
-        else:
-            self.time = self.data['timestamp'].min()
+
+        if max_timestamp is not None:
+            self.data = self.data[self.data['timestamp'] <= max_timestamp]
+
+        self.current_timestamp = self.data.iloc[0]['timestamp']
 
     def get_data_points(self, timestamp, N=1):
         """Get the last N data points before a particular timestamp
 
         """
         relevant_data = self.data[self.data['timestamp'] < timestamp]
-        return relevant_data.head(N)
+        return relevant_data.tail(N).reset_index(drop=True)
 
     def get_latest_bars(self, N):
-        return self.get_data_points(self.time, N)
+        return self.get_data_points(self.current_timestamp, N)
 
     def update_bars(self):
-        """Go to the next timestamp, and calculate the
+        """ Generator to get the next bar value, and update the current timestamp
         """
-        last_bar = get_data_points(self.time, 1)
-        next_bar = last_bar
-        while last_bar == next_bar:
-            self.time += timedelta(days=1)
-            next_bar = get_data_points(self.time, 1)
-            if self.time = self.max_timestamp:
-                return False
-        signal_bars = get_latest_bars(lookback)
-        last_bar = next_bar
-        self.events.put(MarketEvent(time, last_bar, signal_bars))
+        next_bar = next(self.data.iterrows())[1]
+        if next_bar is None:
+            return False
+
+        self.current_timestamp = next_bar['timestamp']
+        signal_bars = self.get_latest_bars(self.lookback)
+        self.events.put(MarketEvent(self.current_timestamp, next_bar, signal_bars))
+
+    def read_file(self, file_path):
+        raise NotImplementedError("read_file must be implemented by inherited class")
 
 
 class GoogleCSV(DailyCsvHandler):
@@ -78,4 +79,4 @@ class GoogleCSV(DailyCsvHandler):
         self.data['share_price'] = self.data['Close']
 
         # Convert data to a datetime format
-        self.data.sort_values(['timestamp'], ascending=True)
+        self.data.sort_values(['timestamp'], ascending=False)

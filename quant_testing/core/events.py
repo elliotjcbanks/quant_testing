@@ -1,10 +1,10 @@
 # event.py
-class ExecutionType
+class ExecutionType:
     buy = 1
     sell = 2
 
 
-class Event(object):
+class Event:
     """
     Event is base class providing an interface for all subsequent
     (inherited) events, that will trigger further events in the
@@ -19,7 +19,7 @@ class MarketEvent(Event):
     corresponding bars.
     """
 
-    def __init__(timestamp, last_tick, signal_data):
+    def __init__(self, timestamp, last_tick, signal_data):
         """
         """
         self.timestamp = timestamp
