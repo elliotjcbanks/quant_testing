@@ -75,7 +75,7 @@ class SingleSharePortfolio(Portfolio):
         """
         qnty = fill_order.quantity
         price = fill_order.price
-        costs = fill_order.fill_cost
+        costs = fill_order.commission
         if fill_order.direction == ExecutionType.buy:
             self.buy_instrument(qnty, price, costs)
         elif fill_order.direction == ExecutionType.sell:
