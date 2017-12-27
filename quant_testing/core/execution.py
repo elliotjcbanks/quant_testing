@@ -1,4 +1,8 @@
-def Executor(object):
+from abc import ABCMeta, abstractmethod
+from quant_testing.core.events import FillEvent
+
+
+class Executor(object):
 
     __metaclass__ = ABCMeta
 
@@ -6,7 +10,8 @@ def Executor(object):
     def fill_order():
         raise NotImplementedError
 
-def NaiveSimulationExecutor(Executor):
+
+class NaiveSimulationExecutor(Executor):
 
     def __init__(self, portfolio, events, tick_data):
 
@@ -25,11 +30,11 @@ def NaiveSimulationExecutor(Executor):
 
         # Get the latest price
         lastest_bars = self.tick_data.get_latest_bars(1)
-        price = lastest_bars['share_price']
+        price = lastest_bars['share_price'].iloc[0]
 
         # Get the transaction_costs
         num_shares = order_event.quantity
-        commission = self.portfolio.strategy_transaction_costs(num_shares)
+        commission = self.portfolio.commission(num_shares)
 
         # Naive implementation will just execute the same order
         fill = FillEvent(None, None, None, num_shares,

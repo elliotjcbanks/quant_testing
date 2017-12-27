@@ -1,17 +1,20 @@
 """Test the portfolio classes
 """
 import queue
-from unittest import mock
 import pytest
+import pandas as pd
 
 from quant_testing.core.portfolio import SingleSharePortfolio as Portfolio
 from quant_testing.core.events import SignalEvent, FillEvent, OrderEvent, ExecutionType
+
 
 # ############ Single share portfolio ###################################
 # TODO: add more tests in a pytest.parametrize, rather than hard coded in
 class MockTickdata:
     def get_latest_bars(*args):
-        return {'share_price': 50}
+        return pd.DataFrame({'share_price': 10, 'timestamp': 0},
+                            columns=['share_price', 'timestamp'], index=[0])
+
 
 def test_determine_move():
     events = queue.Queue()

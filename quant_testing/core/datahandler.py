@@ -1,14 +1,12 @@
-import logging
 from abc import ABCMeta, abstractmethod
 import pandas as pd
-from datetime import datetime, timedelta
-import quant_testing.core.events
+from datetime import datetime
 from .events import MarketEvent
 
 logger = "AlgoTrading.log"
 
-# DataHandler classes
 
+# DataHandler classes
 class DataHandler:
     """
     DataHandler is an abstract base class providing an interface for
@@ -35,7 +33,7 @@ class DataHandler:
 
 class DailyCsvHandler(DataHandler):
 
-    def __init__(self, file_path, events, lookback=10, max_timestamp=None):
+    def __init__(self, file_path, events, lookback=10, max_timestamp=None, current_timestamp=None):
 
         self.read_file(file_path)
         self.events = events
@@ -44,7 +42,13 @@ class DailyCsvHandler(DataHandler):
         if max_timestamp is not None:
             self.data = self.data[self.data['timestamp'] <= max_timestamp]
 
-        self.current_timestamp = self.data.iloc[0]['timestamp']
+        if current_timestamp is None:
+            self.current_timestamp = self.data.iloc[0]['timestamp']
+        else:
+            self.current_timestamp = current_timestamp
+
+        # This is the point to iterate through the data
+        self.data_generator = self.data.iterrows()
 
     def get_data_points(self, timestamp, N=1):
         """Get the last N data points before a particular timestamp
@@ -59,7 +63,7 @@ class DailyCsvHandler(DataHandler):
     def update_bars(self):
         """ Generator to get the next bar value, and update the current timestamp
         """
-        next_bar = next(self.data.iterrows())[1]
+        next_bar = next(self.data_generator)[1]
         if next_bar is None:
             return False
 
@@ -79,4 +83,4 @@ class GoogleCSV(DailyCsvHandler):
         self.data['share_price'] = self.data['Close']
 
         # Convert data to a datetime format
-        self.data.sort_values(['timestamp'], ascending=False)
+        self.data = self.data.sort_values(['timestamp'], ascending=True)

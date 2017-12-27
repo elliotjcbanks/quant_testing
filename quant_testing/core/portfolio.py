@@ -3,9 +3,9 @@
 from .defaults import ib_comission
 from quant_testing.core.events import ExecutionType, OrderEvent
 
-
 import logging
 logger = logging.Logger('portfolio.log')
+
 
 class Portfolio:
     pass
@@ -26,7 +26,7 @@ class SingleSharePortfolio(Portfolio):
     def determine_move(self, signal_event):
         # First we need the current share price
         current_data = self.tick_data.get_latest_bars(1)
-        share_price = current_data['share_price']
+        share_price = current_data['share_price'].iloc[0]
 
         # Get approximate transaction_costs - always buy roughly half the portfolio
         approx_shares = int(0.5*(self.cash // share_price))
@@ -35,7 +35,8 @@ class SingleSharePortfolio(Portfolio):
         if signal_event.signal_type == ExecutionType.buy and self.shares == 0:
             # Get the number of shares we can buy, and send the order
             shares_to_buy = max(int(self.cash // share_price - approx_costs), 0)
-            return OrderEvent(None, 'MKT_ORDER', shares_to_buy, ExecutionType.buy)
+            if shares_to_buy:
+                return OrderEvent(None, 'MKT_ORDER', shares_to_buy, ExecutionType.buy)
         if signal_event.signal_type == ExecutionType.sell and self.shares > 0:
             return OrderEvent(None, 'MKT_ORDER', self.shares, ExecutionType.sell)
 
@@ -45,11 +46,10 @@ class SingleSharePortfolio(Portfolio):
             self.events.put(order_event)
 
     def buy_instrument(self, number_shares, share_price, transaction_costs):
-
         total_cost = number_shares * share_price + transaction_costs
 
         if total_cost > self.cash:
-            logger.warning("Not possible to execute stragety"
+            logger.warning("Not possible to execute strategy"
                            " - insufficient funds!")
             return
 
@@ -57,7 +57,6 @@ class SingleSharePortfolio(Portfolio):
         self.shares += number_shares
 
     def sell_instrument(self, number_shares, share_price, transaction_costs):
-
         if number_shares > self.shares:
             logger.warning("Not possible to execute stragety"
                            " - insufficient shares!")
@@ -82,7 +81,3 @@ class SingleSharePortfolio(Portfolio):
             self.sell_instrument(qnty, price, costs)
         else:
             raise ValueError("Unknown direction {}".format(fill_order.direction))
-
-    @property
-    def value(self, share_price):
-        return self.cash + self.shares * share_price
