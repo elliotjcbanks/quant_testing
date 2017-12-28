@@ -58,6 +58,29 @@ class MovingAverageCrossStrategy(Strategy):
                                         ExecutionType.sell))
 
 
+class BuyAndHold(Strategy):
+
+    def generate_strategy(self, event):
+        """ Buy the stock, and hold it.
+
+        """
+
+        if not isinstance(event, MarketEvent):
+            return
+
+        tick_data = event.signal_data
+        data = tick_data.get_latest_bars(1)
+        if any((data is None, data.empty)):
+            # Can occasionally get none if this is the start of a cycle
+            return None
+
+        tick_data = event.signal_data
+        if self.portfolio.shares == 0:
+            self.events.put(SignalEvent(tick_data.symbol,
+                                        event.timestamp,
+                                        ExecutionType.buy))
+
+
 class BinaryStrategy(Strategy):
     """ Using data, buy if price is more than 2 std below mean. Sell if reverts
     back to within 2 std of mean.

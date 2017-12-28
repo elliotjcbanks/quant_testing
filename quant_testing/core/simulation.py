@@ -36,6 +36,9 @@ class Simulator:
             If True, print the portfolio after every event
 
         """
+        high_water_mark = 0
+        drawdown = 0
+
         while True:
 
             while True:
@@ -63,11 +66,20 @@ class Simulator:
                             self.portfolio.update_portfolio(event)
 
             if not self.returns or self.datahandler.current_timestamp != self.returns[-1][0]:
+                high_water_mark, drawdown = self._calculate_drawdown(high_water_mark, drawdown)
+                if not self.returns:
+                    daily_return = 0
+                else:
+                    daily_return = ((self.portfolio.value - self.returns[-1][3])
+                                    / self.returns[-1][3])
+
                 self.returns.append((self.datahandler.current_timestamp,
                                      self.portfolio.cash,
                                      self.portfolio.shares,
                                      self.portfolio.value,
-                                     self.cumulative_comission))
+                                     daily_return,
+                                     self.cumulative_comission,
+                                     drawdown))
             if output:
                 print("cash: {}, shares: {}".format(self.portfolio.cash,
                                                     self.portfolio.shares))
@@ -76,13 +88,31 @@ class Simulator:
             if update_result is False or self.datahandler.current_timestamp >= finish:
                 break
 
+    def _calculate_drawdown(self, high_water_mark, drawdown):
+        """ Calculate the drawdown
+
+        """
+        if not self.returns:
+            drawdown = 0
+            high_water_mark = self.portfolio.value
+
+        if self.portfolio.value >= high_water_mark:
+            high_water_mark = self.portfolio.value
+            drawdown = 0
+        else:
+            drawdown = (high_water_mark - self.portfolio.value) / high_water_mark
+
+        return high_water_mark, drawdown
+
     def _generate_summary_stats(self):
         """Generate a pandas dataframe of the results
         """
 
         eq_curve = pd.DataFrame(self.returns,
-                                columns=['date', 'cash', 'shares',
-                                         'value', 'cumulative_comission'])
-        eq_curve.set_index('date')
-        eq_curve['returns'] = eq_curve['value'].pct_change()
+                                columns=['date', 'cash', 'shares', 'equity_value',
+                                         'daily_return', 'cumulative_comission', 'drawdown'])
+        eq_curve = eq_curve.set_index('date')
+        eq_curve['total_return'] = 100 * ((eq_curve['equity_value'] -
+                                           eq_curve['equity_value'].iloc[0]) /
+                                          eq_curve['equity_value'].iloc[0])
         return eq_curve

@@ -79,6 +79,9 @@ class DailyHandler(DataHandler):
 
 
 class GoogleCSV(DailyHandler):
+    """ Reader for google finance csv file
+
+    """
 
     def read_file(self, file_path):
         self.data = pd.read_csv(file_path)
@@ -90,9 +93,14 @@ class GoogleCSV(DailyHandler):
 
 
 class QuandlReader(DailyHandler):
+    """ Reader for Quadl data.
+
+    This requires the user to have an api key in the computer common.ini file
+
+    """
 
     def __init__(self, symbol, events, lookback=10, max_timestamp=None, current_timestamp=None):
-        # Get the config for quanl to read the data
+        # Get the config for quandl to read the data
         config = configparser.ConfigParser()
         config.read(CONFIG_LOC)
         quandl.ApiConfig.api_key = config.get('quandl', 'api_key')
