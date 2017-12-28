@@ -1,9 +1,12 @@
 from abc import ABCMeta, abstractmethod
 import pandas as pd
+import quandl
+import configparser
 from datetime import datetime
 from .events import MarketEvent
 
 logger = "AlgoTrading.log"
+CONFIG_LOC = '/home/elliot/.config/personal/common.ini'
 
 
 # DataHandler classes
@@ -31,19 +34,19 @@ class DataHandler:
         raise NotImplementedError("Should implement get_latest_bars()")
 
 
-class DailyCsvHandler(DataHandler):
+class DailyHandler(DataHandler):
 
-    def __init__(self, file_path, events, lookback=10, max_timestamp=None, current_timestamp=None):
+    def __init__(self, file_path, events, max_timestamp=None, current_timestamp=None):
 
         self.read_file(file_path)
+        self.symbol = file_path
         self.events = events
-        self.lookback = lookback
 
         if max_timestamp is not None:
-            self.data = self.data[self.data['timestamp'] <= max_timestamp]
+            self.data = self.data[self.data.index <= max_timestamp]
 
         if current_timestamp is None:
-            self.current_timestamp = self.data.iloc[0]['timestamp']
+            self.current_timestamp = self.data.index[0]
         else:
             self.current_timestamp = current_timestamp
 
@@ -54,7 +57,7 @@ class DailyCsvHandler(DataHandler):
         """Get the last N data points before a particular timestamp
 
         """
-        relevant_data = self.data[self.data['timestamp'] < timestamp]
+        relevant_data = self.data[self.data.index < timestamp]
         return relevant_data.tail(N).reset_index(drop=True)
 
     def get_latest_bars(self, N):
@@ -63,24 +66,50 @@ class DailyCsvHandler(DataHandler):
     def update_bars(self):
         """ Generator to get the next bar value, and update the current timestamp
         """
-        next_bar = next(self.data_generator)[1]
+        next_step = next(self.data_generator)
+        next_bar = next_step[1]
         if next_bar is None:
             return False
 
-        self.current_timestamp = next_bar['timestamp']
-        signal_bars = self.get_latest_bars(self.lookback)
-        self.events.put(MarketEvent(self.current_timestamp, next_bar, signal_bars))
+        self.current_timestamp = next_step[0]
+        self.events.put(MarketEvent(self.current_timestamp, next_bar, self))
 
     def read_file(self, file_path):
         raise NotImplementedError("read_file must be implemented by inherited class")
 
 
-class GoogleCSV(DailyCsvHandler):
+class GoogleCSV(DailyHandler):
 
     def read_file(self, file_path):
         self.data = pd.read_csv(file_path)
-        self.data['timestamp'] = self.data.Date.apply(lambda x: datetime.strptime(x, '%d-%b-%y'))
+        self.data.index = self.data.Date.apply(lambda x: datetime.strptime(x, '%d-%b-%y'))
         self.data['share_price'] = self.data['Close']
 
         # Convert data to a datetime format
-        self.data = self.data.sort_values(['timestamp'], ascending=True)
+        self.data = self.data.sort_index(ascending=True)
+
+
+class QuandlReader(DailyHandler):
+
+    def __init__(self, symbol, events, lookback=10, max_timestamp=None, current_timestamp=None):
+        # Get the config for quanl to read the data
+        config = configparser.ConfigParser()
+        config.read(CONFIG_LOC)
+        quandl.ApiConfig.api_key = config.get('quandl', 'api_key')
+        self.data = quandl.get(symbol)
+        self.data['share_price'] = self.data['Price']
+        self.symbol = symbol
+
+        self.events = events
+        self.lookback = lookback
+
+        if max_timestamp is not None:
+            self.data = self.data[self.data.index <= max_timestamp]
+
+        if current_timestamp is None:
+            self.current_timestamp = self.data.index[0]
+        else:
+            self.current_timestamp = current_timestamp
+
+        # This is the point to iterate through the data
+        self.data_generator = self.data.iterrows()

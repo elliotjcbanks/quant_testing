@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import queue
 
-from quant_testing.core.datahandler import DailyCsvHandler as csv_handler
+from quant_testing.core.datahandler import DailyHandler as csv_handler
 
 
 @pytest.fixture
@@ -68,6 +68,7 @@ def generate_dataframe(data):
     df = pd.DataFrame(data, columns=['timestamp', 'Open', 'High', 'Low', 'share_price', 'Volume'])
     col_list = ['Open', 'High', 'Low', 'share_price', 'Volume']
     df[col_list] = df[col_list].astype('float64')
+    df = df.set_index('timestamp')
     return df
 
 
@@ -79,7 +80,6 @@ def test_datahandler_constructor(mock_data):
     test_datahandler = csv_handler(mock_data, events)
 
     assert test_datahandler.events == events
-    assert test_datahandler.lookback == 10
     assert test_datahandler.current_timestamp == pd.to_datetime(mock_data[:, 0]).min()
 
 
@@ -108,7 +108,7 @@ def test_update_bars_get_latest_bars(mock_data, position, points):
     """
     events = queue.Queue()
     max_timestamp = pd.to_datetime(mock_data[position, 0])
-    test_datahandler = csv_handler(mock_data, events, max_timestamp=max_timestamp, lookback=1)
+    test_datahandler = csv_handler(mock_data, events, max_timestamp=max_timestamp)
 
     # Check that a single update goes in the right position
     test_datahandler.update_bars()

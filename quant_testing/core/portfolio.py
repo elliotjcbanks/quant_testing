@@ -23,6 +23,14 @@ class SingleSharePortfolio(Portfolio):
         self.tick_data = tick_data
         self.commission = commission_calc
 
+    @property
+    def value(self):
+        # First we need the current share price
+        current_data = self.tick_data.get_latest_bars(1)
+        share_price = current_data['share_price'].iloc[0] if not current_data.empty else 0
+
+        return self.cash + self.shares*share_price
+
     def determine_move(self, signal_event):
         # First we need the current share price
         current_data = self.tick_data.get_latest_bars(1)
