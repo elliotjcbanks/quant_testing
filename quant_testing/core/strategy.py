@@ -1,4 +1,7 @@
-from events import ExecutionType
+import numpy as np
+
+from .events import ExecutionType, SignalEvent
+
 
 class Strategy:
     """Calculate the signal based on the data, determine whether to carry out the
@@ -11,7 +14,7 @@ class Strategy:
 
     def strategy_transaction_costs(self):
         raise NotImplementedError
-        
+
 
 class BinaryStrategy(Strategy):
     """ Using data, buy if price is more than 2 std below mean. Sell if reverts
@@ -19,12 +22,9 @@ class BinaryStrategy(Strategy):
 
     """
 
-    def __init__(self, events, flat_commision,
-                 percentage_comission, portfolio):
+    def __init__(self, events, portfolio):
 
         self.events = events
-        self.flat_cost = flat_commision
-        self.percentage_comission = percentage_comission
         self.portfolio = portfolio
 
     def generate_strategy(self, event):
@@ -34,6 +34,9 @@ class BinaryStrategy(Strategy):
         """
 
         data = event.signal_data
+        if any((data is None, data.empty)):
+            # Can occasionally get none if this is the start of a cycle
+            return None
         price_data = np.asarray(data['share_price'])
         current_price = price_data[-1]
         mean_price = np.mean(price_data)
@@ -42,8 +45,12 @@ class BinaryStrategy(Strategy):
         if current_price > mean_price - 2 * std_price:
             self.events.put(SignalEvent(None,
                                         event.timestamp,
-                                        ExecutionType.sell)
+                                        ExecutionType.sell))
+
         elif current_price < mean_price - 2 * std_price:
             self.events.put(SignalEvent(None,
                                         event.timestamp,
-                                        ExecutionType.buy)
+                                        ExecutionType.buy))
+
+        else:
+            return None

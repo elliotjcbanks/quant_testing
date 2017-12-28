@@ -1,13 +1,11 @@
 from unittest import mock
 import pandas as pd
 import numpy as np
-from datetime import datetime
 
 import pytest
 import queue
 
 from quant_testing.core.datahandler import DailyCsvHandler as csv_handler
-from quant_testing.core.events import MarketEvent
 
 
 @pytest.fixture
@@ -68,7 +66,7 @@ def generate_dataframe(data):
     """Create a pandas dataframe from data for the csv testing
     """
     df = pd.DataFrame(data, columns=['timestamp', 'Open', 'High', 'Low', 'share_price', 'Volume'])
-    col_list =['Open', 'High', 'Low', 'share_price', 'Volume']
+    col_list = ['Open', 'High', 'Low', 'share_price', 'Volume']
     df[col_list] = df[col_list].astype('float64')
     return df
 
@@ -113,5 +111,5 @@ def test_update_bars_get_latest_bars(mock_data, position, points):
     test_datahandler = csv_handler(mock_data, events, max_timestamp=max_timestamp, lookback=1)
 
     # Check that a single update goes in the right position
-    test_dataframe = test_datahandler.update_bars()
+    test_datahandler.update_bars()
     assert events.qsize() == 1
